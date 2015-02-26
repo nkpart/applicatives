@@ -6,8 +6,8 @@ module Control.Applicative.Error where
 
 import Control.Applicative
 import Control.Applicative.Compose
-import Data.Functor.Compose
 import Data.Semigroup
+import Data.Functor.Compose
 import Data.Validation
 
 class (Applicative f) => ApplicativeError e f | f -> e where
@@ -30,13 +30,19 @@ instance ApplicativeError e (Validation e) where
   catchError (Success a) (Success _) = Success a
 
 instance (Applicative g, ApplicativeError e f) => ApplicativeError e (Outside f g) where
-  throwError = Outside . Compose . fmap pure . throwError
-  catchError (Outside (Compose fa)) (Outside (Compose fge2a)) = Outside . Compose $ catchError fa $ fmap appIn fge2a
+  throwError = Outside . fmap pure . throwError
+  catchError (Outside fa) (Outside fge2a) = Outside . catchError fa $ fmap appIn fge2a
 
 appIn :: Applicative g => g (e -> a) -> e -> g a
 appIn gf e = gf <*> pure e
 
--- If you have AppError on inside of Compose, you have AppError for compose
 instance (Applicative f, ApplicativeError e g) => ApplicativeError e (Inside f g) where
-  throwError = Inside . Compose . pure . throwError
-  catchError (Inside (Compose fa)) (Inside (Compose fea)) = Inside . Compose $ liftA2 catchError fa fea
+  throwError = Inside . pure . throwError
+  catchError (Inside fa) (Inside fea) = Inside $ liftA2 catchError fa fea
+
+
+
+
+instance (Applicative f, ApplicativeError e g) => ApplicativeError e (Compose f g) where
+  throwError = Compose . pure . throwError
+  catchError (Compose fa) (Compose fea) = Compose $ liftA2 catchError fa fea

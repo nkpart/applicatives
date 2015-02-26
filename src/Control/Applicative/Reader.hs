@@ -25,11 +25,16 @@ instance ApplicativeReader r ((->) r) where
   reader = id
 
 instance (Applicative g, ApplicativeReader r f) => ApplicativeReader r (Outside f g) where
-  ask = Outside . Compose . fmap pure $ ask
-  local f (Outside (Compose fga)) = Outside . Compose $ local f fga
-  reader = Outside . Compose . fmap pure . reader
+  ask = Outside . fmap pure $ ask
+  local f (Outside fga) = Outside $ local f fga
+  reader = Outside . fmap pure . reader
+
+instance (Applicative g, ApplicativeReader r f) => ApplicativeReader r (Compose f g) where
+  ask = Compose . fmap pure $ ask
+  local f (Compose fga) = Compose $ local f fga
+  reader = Compose . fmap pure . reader
 
 instance (Applicative f, ApplicativeReader r g) => ApplicativeReader r (Inside f g) where
-  ask = Inside . Compose . pure $ ask
-  local f (Inside (Compose fga)) = Inside . Compose $ fmap (local f) fga
-  reader = Inside . Compose . pure . reader
+  ask = Inside . pure $ ask
+  local f (Inside fga) = Inside $ fmap (local f) fga
+  reader = Inside . pure . reader
