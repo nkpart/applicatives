@@ -41,8 +41,6 @@ instance (Applicative f, ApplicativeError e g) => ApplicativeError e (Inside f g
   catchError (Inside fa) (Inside fea) = Inside $ liftA2 catchError fa fea
 
 
-
-
 instance (Applicative f, ApplicativeError e g) => ApplicativeError e (Compose f g) where
   throwError = Compose . pure . throwError
   catchError (Compose fa) (Compose fea) = Compose $ liftA2 catchError fa fea

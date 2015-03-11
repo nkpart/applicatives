@@ -5,7 +5,6 @@
 module Control.Applicative.Reader where
 
 import Control.Applicative
-import Control.Applicative.Compose
 import Data.Functor.Compose
 
 -- This is the same as MonadReader
@@ -24,17 +23,22 @@ instance ApplicativeReader r ((->) r) where
   local f m = m .f
   reader = id
 
-instance (Applicative g, ApplicativeReader r f) => ApplicativeReader r (Outside f g) where
-  ask = Outside . fmap pure $ ask
-  local f (Outside fga) = Outside $ local f fga
-  reader = Outside . fmap pure . reader
+newtype InnerReader r f a = InnerReader {getInnerReader :: f (r -> a) }
 
-instance (Applicative g, ApplicativeReader r f) => ApplicativeReader r (Compose f g) where
-  ask = Compose . fmap pure $ ask
-  local f (Compose fga) = Compose $ local f fga
-  reader = Compose . fmap pure . reader
+instance (Applicative f) => Applicative (InnerReader r f)
+instance (Functor f) => Functor (InnerReader r f)
 
-instance (Applicative f, ApplicativeReader r g) => ApplicativeReader r (Inside f g) where
-  ask = Inside . pure $ ask
-  local f (Inside fga) = Inside $ fmap (local f) fga
-  reader = Inside . pure . reader
+instance (Applicative f) => ApplicativeReader r (InnerReader r f) where
+  ask = InnerReader . pure $ ask
+  local f (InnerReader fga) = InnerReader $ fmap (local f) fga
+  reader = InnerReader . pure . reader
+
+newtype OuterReader r f a = OuterReader {getOuterReader :: r -> f a }
+
+instance (Applicative f) => Applicative (OuterReader r f)
+instance (Functor f) => Functor (OuterReader r f)
+
+instance (Applicative f) => ApplicativeReader r (OuterReader r f) where
+  ask = OuterReader . fmap pure $ ask
+  local f (OuterReader fga) = OuterReader $ local f fga
+  reader = OuterReader . fmap pure . reader
