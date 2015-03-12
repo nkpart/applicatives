@@ -1,30 +1,29 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving      #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-} -- Needed for the recursive type family WhereReader
-module Control.Applicative.Reader where
+module Control.Applicative.Reader (
+                                  ApplicativeReader(..), ComposedApplicativeReader (..),
+                                  ) where
 
 import Control.Applicative
 import Data.Functor.Compose
+import Data.Functor.Compose.Where
 
 -- This is the same as MonadReader
-
-type Reader a = (->) a
-
-class Applicative f => ApplicativeReader r f | f -> r where
-    ask   :: f r
-    ask = reader id
-
-    local :: (r -> r) -> f a -> f a
-
-    reader :: (r -> a) -> f a
-    reader f = fmap f ask
+class Applicative f => ApplicativeReader r f  | f -> r where
+  ask :: f r
+  ask = reader id
+  local :: (r -> r) -> f a -> f a
+  reader :: (r -> a) -> f a
+  reader f = fmap f ask
 
 instance ApplicativeReader r ((->) r) where
   ask = id
-  local f m = m .f
+  local f m = m . f
   reader = id
 
 -- When instancing for compose, the Reader is either in the left or right branch, and to pick an
@@ -32,37 +31,21 @@ instance ApplicativeReader r ((->) r) where
 -- the instances overlap.
 -- https://wiki.haskell.org/GHC/AdvancedOverlap#Solution_1_.28using_safer_overlapping_instances.29
 
-class Applicative f => ComposedApplicativeReader flag r f | f -> r where
-   ask'   :: flag -> f r
-   ask' x = reader' x id
+class Applicative f => ComposedApplicativeReader flag r f  | f -> r where
+  ask' :: flag -> f r
+  ask' x = reader' x id
+  local' :: flag -> (r -> r) -> f a -> f a
+  reader' :: flag -> (r -> a) -> f a
+  reader' x f = fmap f (ask' x)
 
-   local' :: flag -> (r -> r) -> f a -> f a
-
-   reader' :: flag -> (r -> a) -> f a
-   reader' x f = fmap f (ask' x)
-
-data IsRight
-data IsLeft
-data Nowhere
-
-type family Or a b where
-              Or Nowhere Nowhere = Nowhere
-              Or Nowhere f = IsRight
-              Or f Nowhere = IsLeft
-
-type family WhereReader a z where
-  WhereReader a (Compose (Reader a) f) = IsLeft
-  WhereReader a (Compose f (Reader a)) = IsRight
-  WhereReader a (Compose f g) = Or (WhereReader a f) (WhereReader a g)
-  WhereReader a f = Nowhere
-
-instance (Applicative g, ApplicativeReader r f) => ComposedApplicativeReader IsLeft r (Compose f g) where
+instance (Applicative g,ApplicativeReader r f) => ComposedApplicativeReader IsLeft r (Compose f g) where
   local' _ f (Compose a) = Compose (local f a)
 
-instance (Applicative f, ApplicativeReader r g) => ComposedApplicativeReader IsRight r (Compose f g) where
-  local' _ f (Compose a) = Compose (fmap (local f) a)
+instance (Applicative f,ApplicativeReader r g) => ComposedApplicativeReader IsRight r (Compose f g) where
+  local' _ f (Compose a) =
+    Compose (fmap (local f) a)
 
-instance (Applicative f, Applicative g, WhereReader r (Compose f g) ~ flag , ComposedApplicativeReader flag r (Compose f g)) => ApplicativeReader r (Compose f g) where
+instance (Applicative f,Applicative g,WhereIs ((->) r) (Compose f g) ~ flag,ComposedApplicativeReader flag r (Compose f g)) => ApplicativeReader r (Compose f g) where
   local = local' (undefined :: flag)
 
 -- newtype InnerReader r f a = InnerReader {getInnerReader :: f (r -> a) }

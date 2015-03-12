@@ -15,10 +15,12 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:
-    -- Control.Applicative.Reader
+    Control.Applicative.Reader
     -- Control.Applicative.Error
     Control.Applicative.IO
+    Control.Applicative.With
 
+    Data.Functor.Compose.Where
     -- Control.Applicative.Compose
 
   other-modules:

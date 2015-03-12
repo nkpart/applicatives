@@ -1,11 +1,18 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FunctionalDependencies #-}
+
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-} -- Needed for the recursive type family WhereIO
-module Control.Applicative.IO where
+module Control.Applicative.IO
+       (ApplicativeIO(..), ComposedApplicativeIO(..)
+       ,                   WithIO(..)) where
 
 import Control.Applicative
 import Data.Functor.Compose
+import Data.Functor.Compose.Where
 
 class Applicative f => ApplicativeIO f where
    liftAIO :: IO a -> f a
@@ -21,34 +28,18 @@ instance ApplicativeIO IO where
 class ComposedApplicativeIO flag f where
    cliftIO :: flag -> IO a -> f a
 
-data IsRight
-data IsLeft
-data Nowhere
-
-type family Or a b where
-              Or Nowhere Nowhere = Nowhere
-              Or Nowhere f = IsRight
-              Or f Nowhere = IsLeft
-
-type family WhereIO z where
-  WhereIO (Compose IO f) = IsLeft
-  WhereIO (Compose f IO) = IsRight
-  WhereIO (Compose f g) = Or (WhereIO f) (WhereIO g)
-  WhereIO f = Nowhere
-
 instance (Applicative g, ApplicativeIO f) => ComposedApplicativeIO IsLeft (Compose f g) where
    cliftIO _ = Compose . fmap pure . liftAIO
 
 instance (Applicative f, ApplicativeIO g) => ComposedApplicativeIO IsRight (Compose f g) where
    cliftIO _ = Compose . pure . liftAIO
 
-instance (Applicative f, Applicative g, WhereIO (Compose f g) ~ flag , ComposedApplicativeIO flag (Compose f g)) => ApplicativeIO (Compose f g) where
+instance (Applicative f, Applicative g, WhereIs IO (Compose f g) ~ flag , ComposedApplicativeIO flag (Compose f g)) => ApplicativeIO (Compose f g) where
   liftAIO = cliftIO (undefined :: flag)
 
--- For demonstration, these are the instances that overlap
+newtype WithIO (h :: * -> *) f a = WithIO { _unWith :: f a } deriving (Functor, Applicative)
 
--- instance (Applicative (Compose fs)) => ApplicativeIO (Compose (IO ': fs)) where
---   liftAIO x = Composed . fmap pure $ x
-
--- instance (Applicative f, Applicative (Compose fs), ApplicativeIO (Compose fs)) => ApplicativeIO (Compose (f ': fs)) where
---   liftAIO x = Composed . pure . liftAIO $ x
+instance (Applicative f,Applicative g,WhereIs h (Compose f g) ~ flag,ComposedApplicativeIO flag (Compose f g)) => ApplicativeIO (WithIO h (Compose f g)) where
+  liftAIO z =
+    WithIO $
+    cliftIO (undefined :: flag) z
