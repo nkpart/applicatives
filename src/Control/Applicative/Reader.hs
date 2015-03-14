@@ -1,12 +1,12 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving      #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-} -- Needed for the recursive type family WhereReader
 module Control.Applicative.Reader (
-                                  ApplicativeReader(..), ComposedApplicativeReader (..),
+                                  ApplicativeReader(..), ApplicativeReaderC (..), HasApplicativeReader
                                   ) where
 
 import Control.Applicative
@@ -31,39 +31,21 @@ instance ApplicativeReader r ((->) r) where
 -- the instances overlap.
 -- https://wiki.haskell.org/GHC/AdvancedOverlap#Solution_1_.28using_safer_overlapping_instances.29
 
-class Applicative f => ComposedApplicativeReader flag r f  | f -> r where
+class Applicative f => ApplicativeReaderC flag r f  | f -> r where
   ask' :: flag -> f r
   ask' x = reader' x id
   local' :: flag -> (r -> r) -> f a -> f a
   reader' :: flag -> (r -> a) -> f a
   reader' x f = fmap f (ask' x)
 
-instance (Applicative g,ApplicativeReader r f) => ComposedApplicativeReader IsLeft r (Compose f g) where
+instance (Applicative g,ApplicativeReader r f) => ApplicativeReaderC OnLeft r (Compose f g) where
   local' _ f (Compose a) = Compose (local f a)
 
-instance (Applicative f,ApplicativeReader r g) => ComposedApplicativeReader IsRight r (Compose f g) where
+instance (Applicative f,ApplicativeReader r g) => ApplicativeReaderC OnRight r (Compose f g) where
   local' _ f (Compose a) =
     Compose (fmap (local f) a)
 
-instance (Applicative f,Applicative g,WhereIs ((->) r) (Compose f g) ~ flag,ComposedApplicativeReader flag r (Compose f g)) => ApplicativeReader r (Compose f g) where
+type HasApplicativeReader con re r f g flag = (WhereIs (re r) con (con f g) ~ flag, ApplicativeReaderC flag r (con f g))
+
+instance (Applicative f,Applicative g,HasApplicativeReader Compose (->) r f g flag) => ApplicativeReader r (Compose f g) where
   local = local' (undefined :: flag)
-
--- newtype InnerReader r f a = InnerReader {getInnerReader :: f (r -> a) }
-
--- instance (Applicative f) => Applicative (InnerReader r f)
--- instance (Functor f) => Functor (InnerReader r f)
-
--- instance (Applicative f) => ApplicativeReader r (InnerReader r f) where
---   ask = InnerReader . pure $ ask
---   local f (InnerReader fga) = InnerReader $ fmap (local f) fga
---   reader = InnerReader . pure . reader
-
--- newtype OuterReader r f a = OuterReader {getOuterReader :: r -> f a }
-
--- instance (Applicative f) => Applicative (OuterReader r f)
--- instance (Functor f) => Functor (OuterReader r f)
-
--- instance (Applicative f) => ApplicativeReader r (OuterReader r f) where
---   ask = OuterReader . fmap pure $ ask
---   local f (OuterReader fga) = OuterReader $ local f fga
---   reader = OuterReader . fmap pure . reader

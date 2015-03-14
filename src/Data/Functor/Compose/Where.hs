@@ -8,17 +8,17 @@ module Data.Functor.Compose.Where where
 
 import Data.Functor.Compose
 
-data IsRight
-data IsLeft
+data OnRight
+data OnLeft
 data Nowhere
 
 type family Or a b where
               Or Nowhere Nowhere = Nowhere
-              Or Nowhere f = IsRight
-              Or f Nowhere = IsLeft
+              Or Nowhere f = OnRight
+              Or f Nowhere = OnLeft
 
-type family WhereIs x (z :: * -> *) where
-  WhereIs x (Compose x f) = IsLeft
-  WhereIs x (Compose f x) = IsRight
-  WhereIs x (Compose f g) = Or (WhereIs x f) (WhereIs x g)
-  WhereIs x f = Nowhere
+type family WhereIs x (c :: (* -> *) -> (* -> *) -> * -> *) (z :: * -> *) where
+  WhereIs x c (c x f) = OnLeft
+  WhereIs x c (c f x) = OnRight
+  WhereIs x c (c f g) = Or (WhereIs x c f) (WhereIs x c g)
+  WhereIs x c f = Nowhere

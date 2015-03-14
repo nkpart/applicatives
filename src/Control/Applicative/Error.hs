@@ -7,6 +7,7 @@
 module Control.Applicative.Error where
 
 import Control.Applicative
+import Data.Functor.Compose.Where
 import Data.Functor.Compose
 import Data.Semigroup
 import Data.Validation
@@ -16,6 +17,8 @@ class (Applicative f) => ApplicativeError e f | f -> e where
     catchError :: f a -> f (e -> a) -> f a
     -- catchError (throwError e) (pure id) == pure e --- possible law?
 
+-- This is the default ApplicativeError type for a stack of Compose
+-- For alternatives, see Control.Applicative.Stacks
 instance Semigroup e => ApplicativeError e (AccValidation e) where
   throwError = AccFailure
   catchError (AccFailure e) (AccFailure e2) = AccFailure (e <> e2)
@@ -35,43 +38,21 @@ instance ApplicativeError e (Validation e) where
 -- the instances overlap.
 -- https://wiki.haskell.org/GHC/AdvancedOverlap#Solution_1_.28using_safer_overlapping_instances.29
 
-class Applicative f => ComposedApplicativeError flag e f | f -> e where
+class Applicative f => ApplicativeErrorC flag e f | f -> e where
   throwError' :: flag -> e -> f a
   catchError' :: flag -> f a -> f (e -> a) -> f a
 
-data IsRight
-data IsLeft
-data Nowhere
+instance (Applicative g, ApplicativeError r f) => ApplicativeErrorC OnLeft r (Compose f g) where
+  throwError' _ = Compose . fmap pure . throwError
+  catchError' _ (Compose fa) (Compose fge2a) = Compose . catchError fa $ fmap appIn fge2a
 
-type family Or a b where
-              Or Nowhere Nowhere = Nowhere
-              Or Nowhere f = IsRight
-              Or f Nowhere = IsLeft
+instance (Applicative f, ApplicativeError r g) => ApplicativeErrorC OnRight r (Compose f g) where
+  throwError' _ = Compose . pure . throwError
+  catchError' _ (Compose fa) (Compose fea) = Compose $ liftA2 catchError fa fea
 
-type family WhereError c e z where
-  WhereError (ApplicativeError e g) e (Compose g f) = IsLeft
-  -- WhereError e (Compose g f) = IsRight
-  -- WhereError e (Compose f g) = Or (WhereError e f) (WhereError e g)
-  -- WhereError e f = Nowhere
+instance (Applicative f, Applicative g, WhereIs (AccValidation e) Compose (Compose f g) ~ flag , ApplicativeErrorC flag e (Compose f g)) => ApplicativeError e (Compose f g) where
+  throwError = throwError' (undefined :: flag)
+  catchError = catchError' (undefined :: flag)
 
-instance (Applicative g, ApplicativeError r f) => ComposedApplicativeError IsLeft r (Compose f g) where
-
-instance (Applicative f, ApplicativeError r g) => ComposedApplicativeError IsRight r (Compose f g) where
-
-instance (Applicative f, Applicative g, WhereError r (Compose f g) ~ flag , ComposedApplicativeError flag r (Compose f g)) => ApplicativeError r (Compose f g) where
-
--- instance (Applicative g, ApplicativeError e f) => ApplicativeError e (Outside f g) where
---   throwError = Outside . fmap pure . throwError
---   catchError (Outside fa) (Outside fge2a) = Outside . catchError fa $ fmap appIn fge2a
-
--- appIn :: Applicative g => g (e -> a) -> e -> g a
--- appIn gf e = gf <*> pure e
-
--- instance (Applicative f, ApplicativeError e g) => ApplicativeError e (Inside f g) where
---   throwError = Inside . pure . throwError
---   catchError (Inside fa) (Inside fea) = Inside $ liftA2 catchError fa fea
-
-
--- instance (Applicative f, ApplicativeError e g) => ApplicativeError e (Compose f g) where
---   throwError = Compose . pure . throwError
---   catchError (Compose fa) (Compose fea) = Compose $ liftA2 catchError fa fea
+appIn :: Applicative g => g (e -> a) -> e -> g a
+appIn gf e = gf <*> pure e

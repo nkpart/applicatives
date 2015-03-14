@@ -1,14 +1,13 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE FunctionalDependencies #-}
 
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-} -- Needed for the recursive type family WhereIO
+{-# LANGUAGE ConstraintKinds #-} -- Needed for the recursive type family WhereIO
 module Control.Applicative.IO
-       (ApplicativeIO(..), ComposedApplicativeIO(..)
-       ,                   WithIO(..)) where
+       (ApplicativeIO(..), ApplicativeIOC(..), HasApplicativeIO
+ ) where
 
 import Control.Applicative
 import Data.Functor.Compose
@@ -25,21 +24,20 @@ instance ApplicativeIO IO where
 -- the instances overlap.
 -- https://wiki.haskell.org/GHC/AdvancedOverlap#Solution_1_.28using_safer_overlapping_instances.29
 
-class ComposedApplicativeIO flag f where
+class ApplicativeIOC flag f where
    cliftIO :: flag -> IO a -> f a
 
-instance (Applicative g, ApplicativeIO f) => ComposedApplicativeIO IsLeft (Compose f g) where
+instance (Applicative g, ApplicativeIO f) => ApplicativeIOC OnLeft (Compose f g) where
    cliftIO _ = Compose . fmap pure . liftAIO
 
-instance (Applicative f, ApplicativeIO g) => ComposedApplicativeIO IsRight (Compose f g) where
+instance (Applicative f, ApplicativeIO g) => ApplicativeIOC OnRight (Compose f g) where
    cliftIO _ = Compose . pure . liftAIO
 
-instance (Applicative f, Applicative g, WhereIs IO (Compose f g) ~ flag , ComposedApplicativeIO flag (Compose f g)) => ApplicativeIO (Compose f g) where
+-- The constraints required to find a particular IO type in a stack of composes
+-- The first 2 parameters should be specialised for the ApplicativeIO instance of a particular compose type,
+-- where `con` is the wrapper around compose you are providing an instance for, and `io` is the type that has
+-- an ApplicativeIO instance.
+type HasApplicativeIO con io f g flag = (WhereIs io con (con f g) ~ flag,ApplicativeIOC flag (con f g))
+
+instance (Applicative f,Applicative g,HasApplicativeIO Compose IO f g flag) => ApplicativeIO (Compose f g) where
   liftAIO = cliftIO (undefined :: flag)
-
-newtype WithIO (h :: * -> *) f a = WithIO { _unWith :: f a } deriving (Functor, Applicative)
-
-instance (Applicative f,Applicative g,WhereIs h (Compose f g) ~ flag,ComposedApplicativeIO flag (Compose f g)) => ApplicativeIO (WithIO h (Compose f g)) where
-  liftAIO z =
-    WithIO $
-    cliftIO (undefined :: flag) z
