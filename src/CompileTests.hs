@@ -14,22 +14,22 @@ import           Data.Functor.Identity
 -- | ApplicativeIO instance selection
 
 io6 :: IO e -> (C.Compose IO (C.Compose Identity Identity)) e
-io6 = liftAIO
+io6 = liftIO
 
 io2 :: IO e -> (C.Compose (C.Compose IO Identity) Identity) e
-io2 = liftAIO
+io2 = liftIO
 
 io4 :: IO e -> (C.Compose Identity (C.Compose IO Identity)) e
-io4 = liftAIO
+io4 = liftIO
 
 io1 :: IO e -> (C.Compose (C.Compose Identity IO) Identity) e
-io1 = liftAIO
+io1 = liftIO
 
 io3 :: IO e -> (C.Compose Identity (C.Compose Identity IO)) e
-io3 = liftAIO
+io3 = liftIO
 
 io5 :: IO e -> (C.Compose (C.Compose Identity Identity) IO) e
-io5 = liftAIO
+io5 = liftIO
 
 -- | ApplicativeIO Newtype tests
 newtype Watsit a = Watsit (IO a) deriving (Functor, Applicative, ApplicativeIO)
@@ -59,6 +59,6 @@ r6 = ask
 -- All the things
 
 all2 :: (Compose ((->) Int) (Compose ((->) String) IO)) [String]
-all2 = liftAIO (putStrLn "Hi") *> (work <$> ask <*> ask)
+all2 = liftIO (putStrLn "Hi") *> (work <$> ask <*> ask)
   where work :: Int -> String -> [String]
         work = replicate

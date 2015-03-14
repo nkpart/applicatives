@@ -12,9 +12,9 @@ module FamilyCompose where
 import Control.Applicative
 
 class Applicative f => ApplicativeIO f where
-   liftAIO :: IO a -> f a
+   liftIO :: IO a -> f a
 
-instance ApplicativeIO IO where liftAIO = id
+instance ApplicativeIO IO where liftIO = id
 
 -- 1. This compose models the composition as a list of type constructors, rather than the tree
 
@@ -52,8 +52,8 @@ instance Applicative (Compose fs) => ComposedApplicativeIO HTrue (Compose (IO ':
    cliftIO _ = Composed . fmap pure
 
 instance (Applicative f, ApplicativeIO (Compose (fs))) => ComposedApplicativeIO HFalse (Compose (f ': fs)) where
-  cliftIO _ = Composed . pure . liftAIO
+  cliftIO _ = Composed . pure . liftIO
 
 
 instance (Applicative (Compose (f ': fs)), IsIO f ~ flag , ComposedApplicativeIO flag (Compose (f ': fs))) => ApplicativeIO (Compose (f ': fs)) where
-  liftAIO = cliftIO (undefined :: flag)
+  liftIO = cliftIO (undefined :: flag)

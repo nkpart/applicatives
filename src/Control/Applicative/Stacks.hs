@@ -29,7 +29,7 @@ type Composed = Composing Compose
 -- An Example!
 
 all2 :: Composed '[(->) Int, IO] [Float]
-all2 = liftAIO (putStrLn "Hi") *> (work <$> pure (1.0) <*> ask)
+all2 = liftIO (putStrLn "Hi") *> (work <$> pure (1.0) <*> ask)
   where work :: Float -> Int -> [Float]
         work = flip replicate
 
@@ -47,7 +47,7 @@ newtype MyCompose f g a =
 
 -- And provide the top level Applicative*** classes. For IO, note that we use MyIO in the HasApplicativeIO constraint
 instance (HasApplicativeIO MyCompose MyIO f g flag) => ApplicativeIO (MyCompose f g) where
-  liftAIO = cliftIO (undefined :: flag)
+  liftIO = cliftIO (undefined :: flag)
 
 instance (HasApplicativeReader MyCompose (->) r f g flag) => ApplicativeReader r (MyCompose f g) where
   local = local' (undefined :: flag)
@@ -55,7 +55,7 @@ instance (HasApplicativeReader MyCompose (->) r f g flag) => ApplicativeReader r
 -- all1 :: (MyCompose (MyCompose ((->) Int) ((->) Float)) MyIO) [Float]
 -- all1 :: Composing MyCompose '[(->) Int, (->) Float, MyIO] [Float]
 all1 :: (ApplicativeIO f, ApplicativeReader Float f, ApplicativeReader Int f) => f [Float]
-all1 = liftAIO (putStrLn "Hi") *> (work <$> ask <*> ask)
+all1 = liftIO (putStrLn "Hi") *> (work <$> ask <*> ask)
   where work :: Float -> Int -> [Float]
         work = flip replicate
 
@@ -68,7 +68,7 @@ runAll1' = coerce (all1 :: Composing MyCompose [(->) Float, (->) Int, MyIO] [Flo
 runAll1'' :: Float -> Int -> IO [Float]
 runAll1'' = coerce (all1 :: Composed [(->) Float, (->) Int, IO] [Float])
 -- instance (Applicative f,Applicative g,WhereIs IO (Compose f g) ~ flag,ComposedApplicativeIO flag (Compose f g)) => ApplicativeIO (Compose f g) where
---   liftAIO = cliftIO (undefined :: flag)
+--   liftIO = cliftIO (undefined :: flag)
 
 
 
@@ -81,7 +81,7 @@ newtype ComposeE f g a = ComposeE (Compose f g a) deriving (Functor, Applicative
                     ,ApplicativeErrorC OnLeft r,ApplicativeErrorC OnRight r
                                                                                       )
 instance (HasApplicativeIO ComposeE IO f g flag) => ApplicativeIO (ComposeE f g) where
-  liftAIO = cliftIO (undefined :: flag)
+  liftIO = cliftIO (undefined :: flag)
 
 instance (HasApplicativeReader ComposeE (->) r f g flag) => ApplicativeReader r (ComposeE f g) where
   local = local' (undefined :: flag)

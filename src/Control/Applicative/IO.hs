@@ -14,10 +14,10 @@ import Data.Functor.Compose
 import Data.Functor.Compose.Where
 
 class Applicative f => ApplicativeIO f where
-   liftAIO :: IO a -> f a
+   liftIO :: IO a -> f a
 
 instance ApplicativeIO IO where
-  liftAIO = id
+  liftIO = id
 
 -- When instancing for compose, the IO is either in the left or right branch, and to pick an
 -- instance that works for this, we need a type that indicates which branch it is in, otherwise
@@ -28,10 +28,10 @@ class ApplicativeIOC flag f where
    cliftIO :: flag -> IO a -> f a
 
 instance (Applicative g, ApplicativeIO f) => ApplicativeIOC OnLeft (Compose f g) where
-   cliftIO _ = Compose . fmap pure . liftAIO
+   cliftIO _ = Compose . fmap pure . liftIO
 
 instance (Applicative f, ApplicativeIO g) => ApplicativeIOC OnRight (Compose f g) where
-   cliftIO _ = Compose . pure . liftAIO
+   cliftIO _ = Compose . pure . liftIO
 
 -- The constraints required to find a particular IO type in a stack of composes
 -- The first 2 parameters should be specialised for the ApplicativeIO instance of a particular compose type,
@@ -40,4 +40,4 @@ instance (Applicative f, ApplicativeIO g) => ApplicativeIOC OnRight (Compose f g
 type HasApplicativeIO con io f g flag = (WhereIs io con (con f g) ~ flag,ApplicativeIOC flag (con f g), Applicative f, Applicative g)
 
 instance (Applicative f,Applicative g,HasApplicativeIO Compose IO f g flag) => ApplicativeIO (Compose f g) where
-  liftAIO = cliftIO (undefined :: flag)
+  liftIO = cliftIO (undefined :: flag)
