@@ -8,6 +8,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 module Control.Applicative.Stacks where
 
 import Data.Functor.Compose
@@ -49,13 +50,19 @@ instance (Applicative f,Applicative g,HasApplicativeReader MyCompose (->) r f g 
   local = local' (undefined :: flag)
 
 -- all1 :: (MyCompose (MyCompose ((->) Int) ((->) Float)) MyIO) [Float]
-all1 :: Composing MyCompose '[(->) Int, (->) Float, MyIO] [Float]
+-- all1 :: Composing MyCompose '[(->) Int, (->) Float, MyIO] [Float]
+all1 :: (ApplicativeIO f, ApplicativeReader Float f, ApplicativeReader Int f) => f [Float]
 all1 = liftAIO (putStrLn "Hi") *> (work <$> ask <*> ask)
   where work :: Float -> Int -> [Float]
         work = flip replicate
 
 runAll1 :: Int -> Float -> MyIO [Float]
-runAll1 = coerce all1
+runAll1 = coerce (all1 :: Composing MyCompose [(->) Int, (->) Float, MyIO] [Float])
 
+runAll1' :: Float -> Int -> MyIO [Float]
+runAll1' = coerce (all1 :: Composing MyCompose [(->) Float, (->) Int, MyIO] [Float])
+
+runAll1'' :: Float -> Int -> IO [Float]
+runAll1'' = coerce (all1 :: Composed [(->) Float, (->) Int, IO] [Float])
 -- instance (Applicative f,Applicative g,WhereIs IO (Compose f g) ~ flag,ComposedApplicativeIO flag (Compose f g)) => ApplicativeIO (Compose f g) where
 --   liftAIO = cliftIO (undefined :: flag)
