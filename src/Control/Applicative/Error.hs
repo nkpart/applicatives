@@ -2,6 +2,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-} -- Needed for the recursive type family WhereReader
 module Control.Applicative.Error where
@@ -50,7 +51,9 @@ instance (Applicative f, ApplicativeError r g) => ApplicativeErrorC OnRight r (C
   throwError' _ = Compose . pure . throwError
   catchError' _ (Compose fa) (Compose fea) = Compose $ liftA2 catchError fa fea
 
-instance (Applicative f, Applicative g, WhereIs (AccValidation e) Compose (Compose f g) ~ flag , ApplicativeErrorC flag e (Compose f g)) => ApplicativeError e (Compose f g) where
+type HasApplicativeError con fe e f g flag = (Applicative f, Applicative g, WhereIs (fe e) con (con f g) ~ flag, ApplicativeErrorC flag e (con f g))
+
+instance HasApplicativeError Compose AccValidation e f g flag => ApplicativeError e (Compose f g) where
   throwError = throwError' (undefined :: flag)
   catchError = catchError' (undefined :: flag)
 

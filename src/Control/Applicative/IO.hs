@@ -37,7 +37,7 @@ instance (Applicative f, ApplicativeIO g) => ApplicativeIOC OnRight (Compose f g
 -- The first 2 parameters should be specialised for the ApplicativeIO instance of a particular compose type,
 -- where `con` is the wrapper around compose you are providing an instance for, and `io` is the type that has
 -- an ApplicativeIO instance.
-type HasApplicativeIO con io f g flag = (WhereIs io con (con f g) ~ flag,ApplicativeIOC flag (con f g))
+type HasApplicativeIO con io f g flag = (WhereIs io con (con f g) ~ flag,ApplicativeIOC flag (con f g), Applicative f, Applicative g)
 
 instance (Applicative f,Applicative g,HasApplicativeIO Compose IO f g flag) => ApplicativeIO (Compose f g) where
   liftAIO = cliftIO (undefined :: flag)
