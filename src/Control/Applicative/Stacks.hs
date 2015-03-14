@@ -11,6 +11,7 @@
 module Control.Applicative.Stacks where
 
 import Data.Functor.Compose
+import Data.Coerce
 import Control.Applicative
 import Control.Applicative.IO
 import Control.Applicative.Reader
@@ -52,6 +53,9 @@ all1 :: Composing MyCompose '[(->) Int, (->) Float, MyIO] [Float]
 all1 = liftAIO (putStrLn "Hi") *> (work <$> ask <*> ask)
   where work :: Float -> Int -> [Float]
         work = flip replicate
+
+runAll1 :: Int -> Float -> MyIO [Float]
+runAll1 = coerce all1
 
 -- instance (Applicative f,Applicative g,WhereIs IO (Compose f g) ~ flag,ComposedApplicativeIO flag (Compose f g)) => ApplicativeIO (Compose f g) where
 --   liftAIO = cliftIO (undefined :: flag)
