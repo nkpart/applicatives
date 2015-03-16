@@ -1,0 +1,5 @@
+
+Check each of the transformers in MTL to see if they have an applicative version
+
+An applicative versions needs to compose with an applicative on the left or right and still be able to work
+
