@@ -32,11 +32,13 @@ instance ApplicativeReader r ((->) r) where
 -- https://wiki.haskell.org/GHC/AdvancedOverlap#Solution_1_.28using_safer_overlapping_instances.29
 
 class Applicative f => ApplicativeReaderC flag r f  | f -> r where
-  ask' :: flag -> f r
-  ask' x = reader' x id
   local' :: flag -> (r -> r) -> f a -> f a
+  ask' :: flag -> f r
   reader' :: flag -> (r -> a) -> f a
+
+  -- TODO: should each impl be specified here?
   reader' x f = fmap f (ask' x)
+  ask' x = reader' x id
 
 instance (Applicative g,ApplicativeReader r f) => ApplicativeReaderC OnLeft r (Compose f g) where
   local' _ f (Compose a) = Compose (local f a)
